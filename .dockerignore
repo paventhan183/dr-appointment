@@ -1,0 +1,3 @@
+# Exclude node_modules from the host, as they will be installed inside the container.
+node_modules
+npm-debug.log

@@ -1,0 +1,26 @@
+[
+  {
+    "phone": "918015241869",
+    "date": "2025-09-20",
+    "time": "09:00",
+    "confirmationSent": false,
+    "reviewSent": true,
+    "id": "1758338628031"
+  },
+  {
+    "phone": "919698979273",
+    "date": "2025-09-20",
+    "time": "09:00",
+    "confirmationSent": false,
+    "reviewSent": false,
+    "id": "1758338893871"
+  },
+  {
+    "phone": "918015241869",
+    "date": "2025-09-21",
+    "time": "09:00",
+    "confirmationSent": true,
+    "reviewSent": true,
+    "id": "1758468313842"
+  }
+]
