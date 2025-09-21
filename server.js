@@ -1,11 +1,14 @@
 const express = require('express');
-const fs = require('fs').promises;
-const path = require('path');
 const cors = require('cors');
+const mongoose = require('mongoose');
+require('dotenv').config(); // Loads environment variables from a .env file
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data.json');
+// Make sure you have a MongoDB server running.
+// You can set your MongoDB connection string as an environment variable (MONGO_URI)
+// or update the default value here.
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/appointmentManager';
 
 // --- Middleware ---
 // Enable CORS for all routes to allow frontend to communicate with this server
@@ -15,32 +18,37 @@ app.use(express.json());
 // Serve static files (like your HTML, CSS) from the current directory
 app.use(express.static(__dirname));
 
-// --- Helper Functions ---
-const readData = async () => {
-    try {
-        const data = await fs.readFile(DATA_FILE, 'utf-8');
-        return JSON.parse(data);
-    } catch (error) {
-        // If the file doesn't exist or is empty, return an empty array
-        if (error.code === 'ENOENT') return [];
-        throw error;
-    }
-};
+// --- Mongoose Schema and Model ---
+const appointmentSchema = new mongoose.Schema({
+    name: { type: String, required: true, trim: true },
+    phone: { type: String, trim: true },
+    date: { type: String, required: true },
+    time: { type: String, required: true },
+    confirmationSent: { type: Boolean, default: false },
+    reviewSent: { type: Boolean, default: false }
+}, {
+    timestamps: true // Adds createdAt and updatedAt timestamps
+});
 
-const writeData = async (data) => {
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-};
+// To match a frontend that might expect 'id' instead of '_id'
+appointmentSchema.set('toJSON', {
+    transform: (document, returnedObject) => {
+        returnedObject.id = returnedObject._id.toString();
+        delete returnedObject._id;
+        delete returnedObject.__v;
+    }
+});
+
+const Appointment = mongoose.model('Appointment', appointmentSchema);
 
 // --- API Routes (CRUD Operations) ---
-// app.get('/', (req, res) => {
-//   res.send('Hello World!');
-// });
 
 // GET /api/appointments - Read all appointments
 app.get('/api/appointments', async (req, res) => {
     try {
-        const appointments = await readData();
+        const appointments = await Appointment.find({});
         // Sort by date and time in descending order (most recent first)
+        // This sorting is done in-memory to correctly handle the combined date and time strings.
         appointments.sort((a, b) => {
             const dateA = new Date(`${a.date}T${a.time}`);
             const dateB = new Date(`${b.date}T${b.time}`);
@@ -48,24 +56,22 @@ app.get('/api/appointments', async (req, res) => {
         });
         res.json(appointments);
     } catch (error) {
-        res.status(500).json({ message: 'Error reading appointments data.' });
+        console.error(error);
+        res.status(500).json({ message: 'Error reading appointments from database.' });
     }
 });
 
 // POST /api/appointments - Create a new appointment
 app.post('/api/appointments', async (req, res) => {
     try {
-        const appointments = await readData();
-        const newAppointment = req.body;
-        
-        // Assign a unique ID
-        newAppointment.id = Date.now().toString();
-        
-        appointments.push(newAppointment);
-        await writeData(appointments);
-        
-        res.status(201).json(newAppointment);
+        const appointment = new Appointment(req.body);
+        const savedAppointment = await appointment.save();
+        res.status(201).json(savedAppointment);
     } catch (error) {
+        console.error(error);
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: 'Validation Error', details: error.message });
+        }
         res.status(500).json({ message: 'Error creating appointment.' });
     }
 });
@@ -73,21 +79,26 @@ app.post('/api/appointments', async (req, res) => {
 // PUT /api/appointments/:id - Update an appointment (for status changes)
 app.put('/api/appointments/:id', async (req, res) => {
     try {
-        const appointments = await readData();
         const { id } = req.params;
         const updatedData = req.body;
 
-        const index = appointments.findIndex(appt => appt.id === id);
-        if (index === -1) {
+        // The { new: true } option returns the document after the update.
+        // runValidators ensures that updates are validated against the schema.
+        const updatedAppointment = await Appointment.findByIdAndUpdate(id, updatedData, { new: true, runValidators: true });
+
+        if (!updatedAppointment) {
             return res.status(404).json({ message: 'Appointment not found.' });
         }
 
-        // Update the appointment with new data
-        appointments[index] = { ...appointments[index], ...updatedData };
-        await writeData(appointments);
-
-        res.json(appointments[index]);
+        res.json(updatedAppointment);
     } catch (error) {
+        console.error(error);
+        if (error.name === 'CastError') {
+            return res.status(400).json({ message: 'Invalid appointment ID format.' });
+        }
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: 'Validation Error', details: error.message });
+        }
         res.status(500).json({ message: 'Error updating appointment.' });
     }
 });
@@ -95,17 +106,20 @@ app.put('/api/appointments/:id', async (req, res) => {
 // DELETE /api/appointments/:id - Delete a single appointment
 app.delete('/api/appointments/:id', async (req, res) => {
     try {
-        let appointments = await readData();
         const { id } = req.params;
 
-        const filteredAppointments = appointments.filter(appt => appt.id !== id);
-        if (appointments.length === filteredAppointments.length) {
+        const deletedAppointment = await Appointment.findByIdAndDelete(id);
+
+        if (!deletedAppointment) {
             return res.status(404).json({ message: 'Appointment not found.' });
         }
 
-        await writeData(filteredAppointments);
         res.status(204).send(); // No content, success
     } catch (error) {
+        console.error(error);
+        if (error.name === 'CastError') {
+            return res.status(400).json({ message: 'Invalid appointment ID format.' });
+        }
         res.status(500).json({ message: 'Error deleting appointment.' });
     }
 });
@@ -113,16 +127,24 @@ app.delete('/api/appointments/:id', async (req, res) => {
 // DELETE /api/appointments - Delete ALL appointments
 app.delete('/api/appointments', async (req, res) => {
     try {
-        await writeData([]); // Write an empty array to the file
+        await Appointment.deleteMany({}); // Deletes all documents in the collection
         res.status(204).send(); // No content, success
     } catch (error) {
-        res.status(500).json({ message: 'Error clearing appointments.' });
+        console.error(error);
+        res.status(500).json({ message: 'Error clearing all appointments.' });
     }
 });
 
 // --- Start Server ---
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-    console.log('Your Appointment Manager is now live.');
-    console.log('Any changes made in the UI will now directly update data.json.');
-});
+mongoose.connect(MONGO_URI)
+    .then(() => {
+        console.log('Connected to MongoDB.');
+        app.listen(PORT, () => {
+            console.log(`Server is running on http://localhost:${PORT}`);
+            console.log('Your Appointment Manager is now live and connected to the database.');
+        });
+    })
+    .catch(err => {
+        console.error('Could not connect to MongoDB.', err);
+        process.exit(1);
+    });
