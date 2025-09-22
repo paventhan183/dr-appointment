@@ -25,7 +25,13 @@ const appointmentSchema = new mongoose.Schema({
     date: { type: String, required: true },
     time: { type: String, required: true },
     confirmationSent: { type: Boolean, default: false },
-    reviewSent: { type: Boolean, default: false }
+    reviewSent: { type: Boolean, default: false },
+    services: [{
+        description: { type: String, required: true },
+        cost: { type: Number, required: true },
+        _id: false
+    }],
+    billupdateflag: { type: Boolean, default: false }
 }, {
     timestamps: true // Adds createdAt and updatedAt timestamps
 });
