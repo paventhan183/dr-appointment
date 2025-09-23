@@ -142,9 +142,7 @@ app.delete('/api/appointments', async (req, res) => {
 });
 
 // --- Start Server ---
-mongoose.connect(MONGO_URI, {
-    keepAliveInitialDelay: 300000, // 5 minutes
-})
+mongoose.connect(MONGO_URI)
     .then(() => {
         console.log('Connected to MongoDB.');
         app.listen(PORT, () => {
@@ -156,3 +154,4 @@ mongoose.connect(MONGO_URI, {
         console.error('Could not connect to MongoDB.', err);
         process.exit(1);
     });
+    
