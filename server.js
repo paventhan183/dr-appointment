@@ -141,6 +141,32 @@ app.delete('/api/appointments', async (req, res) => {
     }
 });
 
+// GET /api/bill-details/:phone - Get billing details for the latest appointment by phone number
+app.get('/api/bill-details/:phone', async (req, res) => {
+    try {
+        const { phone } = req.params;
+
+        // Find the most recent appointment for the given phone number
+        const appointment = await Appointment.findOne({ phone }).sort({ date: -1, time: -1 });
+
+        if (!appointment) {
+            return res.status(404).json({ message: 'No appointment found for this phone number.' });
+        }
+
+        // Construct the response object with the required details
+        const billDetails = {
+            patientName: appointment.name,
+            billDate: appointment.date,
+            services: appointment.services
+        };
+
+        res.json(billDetails);
+    } catch (error) {
+        console.error('Error fetching bill details:', error);
+        res.status(500).json({ message: 'Failed to fetch bill details.' });
+    }
+});
+
 // --- Start Server ---
 mongoose.connect(MONGO_URI)
     .then(() => {
