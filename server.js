@@ -168,7 +168,11 @@ app.get('/api/bill-details/:phone', async (req, res) => {
 });
 
 // --- Start Server ---
-mongoose.connect(MONGO_URI)
+mongoose.connect(MONGO_URI,{
+     useNewUrlParser: true,
+     useUnifiedTopology: true,
+     maxPoolSize: 10
+})
     .then(() => {
         console.log('Connected to MongoDB.');
         app.listen(PORT, () => {
