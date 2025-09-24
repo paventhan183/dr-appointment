@@ -169,9 +169,13 @@ app.get('/api/bill-details/:phone', async (req, res) => {
 
 // --- Start Server ---
 mongoose.connect(MONGO_URI,{
-     useNewUrlParser: true,
-     useUnifiedTopology: true,
-     maxPoolSize: 10
+    // These options are no longer needed in recent versions of Mongoose
+    // and are deprecated in the underlying MongoDB driver.
+    // useNewUrlParser: true,
+    // useUnifiedTopology: true,
+    maxPoolSize: 10, // Maintain a pool of up to 10 connections
+    socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+    keepAliveInitialDelay: 300000 // TCP Keep-Alive delay (5 minutes)
 })
     .then(() => {
         console.log('Connected to MongoDB.');
@@ -184,4 +188,13 @@ mongoose.connect(MONGO_URI,{
         console.error('Could not connect to MongoDB.', err);
         process.exit(1);
     });
-    
+
+// Function to ping the database
+function pingDatabase() {
+    mongoose.connection.db.admin().ping()
+        .then(() => console.log('Database pinged to stay awake.'))
+        .catch(err => console.error('Error pinging database:', err));
+}
+
+// Set an interval to ping the database every 5 minutes (300000 ms)
+setInterval(pingDatabase, 300000);
