@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const cron = require('node-cron');
 require('dotenv').config(); // Loads environment variables from a .env file
 
 const app = express();
@@ -183,18 +184,19 @@ mongoose.connect(MONGO_URI,{
             console.log(`Server is running on http://localhost:${PORT}`);
             console.log('Your Appointment Manager is now live and connected to the database.');
         });
+
+        // Keep-alive job for MongoDB Atlas Free Tier
+        // This runs every 5 minutes to prevent the database from sleeping.
+        cron.schedule('*/5 * * * *', async () => {
+            console.log('Pinging MongoDB to keep connection alive...');
+            try {
+                await mongoose.connection.db.admin().ping();
+            } catch (err) {
+                console.error('Failed to ping MongoDB:', err);
+            }
+        });
     })
     .catch(err => {
         console.error('Could not connect to MongoDB.', err);
         process.exit(1);
     });
-
-// Function to ping the database
-function pingDatabase() {
-    mongoose.connection.db.admin().ping()
-        .then(() => console.log('Database pinged to stay awake.'))
-        .catch(err => console.error('Error pinging database:', err));
-}
-
-// Set an interval to ping the database every 5 minutes (300000 ms)
-setInterval(pingDatabase, 300000);
