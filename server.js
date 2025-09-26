@@ -187,7 +187,7 @@ mongoose.connect(MONGO_URI,{
 
         // Keep-alive job for MongoDB Atlas Free Tier
         // This runs every 5 minutes to prevent the database from sleeping.
-        cron.schedule('*/5 * * * *', async () => {
+        cron.schedule('*/2 * * * *', async () => {
             console.log('Pinging MongoDB to keep connection alive...');
             try {
                 await mongoose.connection.db.admin().ping();
