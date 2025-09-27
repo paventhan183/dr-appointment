@@ -50,6 +50,22 @@ const Appointment = mongoose.model('Appointment', appointmentSchema);
 
 // --- API Routes (CRUD Operations) ---
 
+// GET / - A simple hello world endpoint to check if the server is running
+app.get('/api/keepwake', async (req, res) => {
+    try {
+        // Find the first appointment in the database
+        const firstAppointment = await Appointment.findOne({});
+        if (firstAppointment) {
+            res.json(firstAppointment);
+        } else {
+            res.status(404).send('No appointments found in the database.');
+        }
+    } catch (error) {
+        console.error('Error fetching first appointment:', error);
+        res.status(500).json({ message: 'Error fetching data from database.' });
+    }
+});
+
 // GET /api/appointments - Read all appointments
 app.get('/api/appointments', async (req, res) => {
     try {
