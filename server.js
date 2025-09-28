@@ -53,8 +53,8 @@ const Appointment = mongoose.model('Appointment', appointmentSchema);
 // GET /api/keepwake - A specific endpoint to get a record for a fixed date, used for keep-alive purposes.
 app.get('/api/keepwake', async (req, res) => {
     try {
-        // Find an appointment for a specific date to ensure the database is responsive.
-        const keepwakeAppointment = await Appointment.findOne({ date: '2025-09-25' });
+        // Find the first document in the collection to ensure the database is responsive.
+        const keepwakeAppointment = await Appointment.findOne();
         if (keepwakeAppointment) {
             res.json(keepwakeAppointment);
         } else {
