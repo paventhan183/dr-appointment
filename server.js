@@ -50,18 +50,18 @@ const Appointment = mongoose.model('Appointment', appointmentSchema);
 
 // --- API Routes (CRUD Operations) ---
 
-// GET / - A simple hello world endpoint to check if the server is running
+// GET /api/keepwake - A specific endpoint to get a record for a fixed date, used for keep-alive purposes.
 app.get('/api/keepwake', async (req, res) => {
     try {
-        // Find the first appointment in the database
-        const firstAppointment = await Appointment.findOne({});
-        if (firstAppointment) {
-            res.json(firstAppointment);
+        // Find an appointment for a specific date to ensure the database is responsive.
+        const keepwakeAppointment = await Appointment.findOne({ date: '2025-09-25' });
+        if (keepwakeAppointment) {
+            res.json(keepwakeAppointment);
         } else {
-            res.status(404).send('No appointments found in the database.');
+            res.status(404).send('Keep-alive target appointment not found.');
         }
     } catch (error) {
-        console.error('Error fetching first appointment:', error);
+        console.error('Error during keep-alive ping:', error);
         res.status(500).json({ message: 'Error fetching data from database.' });
     }
 });
@@ -81,6 +81,29 @@ app.get('/api/appointments', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error reading appointments from database.' });
+    }
+});
+
+// GET /api/appointments/by-date?date=YYYY-MM-DD - Get all appointments for a specific date
+app.get('/api/appointments/by-date', async (req, res) => {
+    try {
+        const { date } = req.query;
+        if (!date) {
+            return res.status(400).json({ message: 'A date query parameter is required.' });
+        }
+
+        // Optional: Validate date format (YYYY-MM-DD)
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return res.status(400).json({ message: 'Invalid date format. Please use YYYY-MM-DD.' });
+        }
+
+        // Find appointments for the given date and sort them by time
+        const appointments = await Appointment.find({ date: date }).sort({ time: 'asc' });
+
+        res.json(appointments);
+    } catch (error) {
+        console.error('Error fetching appointments by date:', error);
+        res.status(500).json({ message: 'Error fetching appointments from the database.' });
     }
 });
 
@@ -158,13 +181,22 @@ app.delete('/api/appointments', async (req, res) => {
     }
 });
 
-// GET /api/bill-details/:phone - Get billing details for the latest appointment by phone number
+// GET /api/bill-details/:phone - Get billing details by phone number.
+// Optionally, a 'date' query parameter can be provided to get details for a specific date.
+// If no date is provided, it returns the details for the latest appointment.
 app.get('/api/bill-details/:phone', async (req, res) => {
     try {
         const { phone } = req.params;
+        const { date } = req.query; // Get date from query parameters
+
+        const query = { phone };
+        if (date) {
+            query.date = date;
+        }
 
         // Find the most recent appointment for the given phone number
-        const appointment = await Appointment.findOne({ phone }).sort({ date: -1, time: -1 });
+        // If date is provided, it will be included in the query.
+        const appointment = await Appointment.findOne(query).sort({ date: -1, time: -1 });
 
         if (!appointment) {
             return res.status(404).json({ message: 'No appointment found for this phone number.' });
