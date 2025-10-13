@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 const cron = require('node-cron');
 require('dotenv').config(); // Loads environment variables from a .env file
 
@@ -48,7 +49,40 @@ appointmentSchema.set('toJSON', {
 
 const Appointment = mongoose.model('Appointment', appointmentSchema);
 
-// --- API Routes (CRUD Operations) ---
+// --- Auth Routes (Public) ---
+
+// POST /api/auth/login - Authenticate a user and return a JWT
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ message: 'Username and password are required.' });
+        }
+
+        // Get today's date and format it as DDMM
+        const today = new Date();
+        const day = String(today.getDate()).padStart(2, '0');
+        const month = String(today.getMonth() + 1).padStart(2, '0'); // getMonth() is zero-based
+        const expectedPassword = `${day}${month}`;
+
+        const isUsernameValid = username === 'admin';
+        const isPasswordValid = password === expectedPassword;
+
+        if (!isUsernameValid || !isPasswordValid) {
+            return res.status(401).json({ message: 'Invalid credentials.' });
+        }
+
+        // If credentials are correct, generate and send the token
+        const payload = { id: 'admin_user', username: 'admin' };
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        res.json({ token });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error during login.' });
+    }
+});
 
 // GET /api/keepwake - A specific endpoint to get a record for a fixed date, used for keep-alive purposes.
 app.get('/api/keepwake', async (req, res) => {
@@ -65,6 +99,62 @@ app.get('/api/keepwake', async (req, res) => {
         res.status(500).json({ message: 'Error fetching data from database.' });
     }
 });
+
+// GET /api/bill-details/:phone - Get billing details by phone number.
+// Optionally, a 'date' query parameter can be provided to get details for a specific date.
+// If no date is provided, it returns the details for the latest appointment.
+app.get('/api/bill-details/:phone', async (req, res) => {
+    try {
+        const { phone } = req.params;
+        const { date } = req.query; // Get date from query parameters
+
+        const query = { phone };
+        if (date) {
+            query.date = date;
+        }
+
+        // Find the most recent appointment for the given phone number
+        // If date is provided, it will be included in the query.
+        const appointment = await Appointment.findOne(query).sort({ date: -1, time: -1 });
+
+        if (!appointment) {
+            return res.status(404).json({ message: 'No appointment found for this phone number.' });
+        }
+
+        // Construct the response object with the required details
+        const billDetails = {
+            patientName: appointment.name,
+            billDate: appointment.date,
+            services: appointment.services
+        };
+
+        res.json(billDetails);
+    } catch (error) {
+        console.error('Error fetching bill details:', error);
+        res.status(500).json({ message: 'Failed to fetch bill details.' });
+    }
+});
+
+// --- Authentication Middleware ---
+// This middleware will protect all subsequent /api routes
+app.use('/api', (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
+
+    if (token == null) {
+        return res.status(401).json({ message: 'Unauthorized: No token provided.' });
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Forbidden: Token is not valid.' });
+        }
+        req.user = user;
+        next();
+    });
+});
+
+// --- API Routes (CRUD Operations) ---
 
 // GET /api/appointments - Read all appointments
 app.get('/api/appointments', async (req, res) => {
@@ -178,41 +268,6 @@ app.delete('/api/appointments', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error clearing all appointments.' });
-    }
-});
-
-// GET /api/bill-details/:phone - Get billing details by phone number.
-// Optionally, a 'date' query parameter can be provided to get details for a specific date.
-// If no date is provided, it returns the details for the latest appointment.
-app.get('/api/bill-details/:phone', async (req, res) => {
-    try {
-        const { phone } = req.params;
-        const { date } = req.query; // Get date from query parameters
-
-        const query = { phone };
-        if (date) {
-            query.date = date;
-        }
-
-        // Find the most recent appointment for the given phone number
-        // If date is provided, it will be included in the query.
-        const appointment = await Appointment.findOne(query).sort({ date: -1, time: -1 });
-
-        if (!appointment) {
-            return res.status(404).json({ message: 'No appointment found for this phone number.' });
-        }
-
-        // Construct the response object with the required details
-        const billDetails = {
-            patientName: appointment.name,
-            billDate: appointment.date,
-            services: appointment.services
-        };
-
-        res.json(billDetails);
-    } catch (error) {
-        console.error('Error fetching bill details:', error);
-        res.status(500).json({ message: 'Failed to fetch bill details.' });
     }
 });
 
