@@ -157,22 +157,22 @@ app.use('/api', (req, res, next) => {
 // --- API Routes (CRUD Operations) ---
 
 // GET /api/appointments - Read all appointments
-app.get('/api/appointments', async (req, res) => {
-    try {
-        const appointments = await Appointment.find({});
-        // Sort by date and time in descending order (most recent first)
-        // This sorting is done in-memory to correctly handle the combined date and time strings.
-        appointments.sort((a, b) => {
-            const dateA = new Date(`${a.date}T${a.time}`);
-            const dateB = new Date(`${b.date}T${b.time}`);
-            return dateB - dateA;
-        });
-        res.json(appointments);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error reading appointments from database.' });
-    }
-});
+// app.get('/api/appointments', async (req, res) => {
+//     try {
+//         const appointments = await Appointment.find({});
+//         // Sort by date and time in descending order (most recent first)
+//         // This sorting is done in-memory to correctly handle the combined date and time strings.
+//         appointments.sort((a, b) => {
+//             const dateA = new Date(`${a.date}T${a.time}`);
+//             const dateB = new Date(`${b.date}T${b.time}`);
+//             return dateB - dateA;
+//         });
+//         res.json(appointments);
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: 'Error reading appointments from database.' });
+//     }
+// });
 
 // GET /api/appointments/by-date?date=YYYY-MM-DD - Get all appointments for a specific date
 app.get('/api/appointments/by-date', async (req, res) => {
