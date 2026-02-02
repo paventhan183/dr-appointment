@@ -197,6 +197,27 @@ app.get('/api/appointments/by-date', async (req, res) => {
     }
 });
 
+// GET /api/appointments/search?name=PartialName - Search appointments by patient name (partial match)
+app.get('/api/appointments/search', async (req, res) => {
+    try {
+        const { name } = req.query;
+        if (!name) {
+            return res.status(400).json({ message: 'A name query parameter is required.' });
+        }
+
+        // Create a case-insensitive regular expression for partial matching
+        const regex = new RegExp(name, 'i');
+
+        // Find appointments where the name matches the regex
+        const appointments = await Appointment.find({ name: regex }).sort({ date: -1, time: -1 });
+
+        res.json(appointments);
+    } catch (error) {
+        console.error('Error searching appointments by name:', error);
+        res.status(500).json({ message: 'Error searching appointments.' });
+    }
+});
+
 // POST /api/appointments - Create a new appointment
 app.post('/api/appointments', async (req, res) => {
     try {
