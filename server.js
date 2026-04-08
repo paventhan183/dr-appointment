@@ -88,7 +88,6 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/keepwake', async (req, res) => {
     try {
         // Find the first document in the collection to ensure the database is responsive.
-        // checking
         const keepwakeAppointment = await Appointment.findOne();
         if (keepwakeAppointment) {
             res.json(keepwakeAppointment);
@@ -305,7 +304,7 @@ mongoose.connect(MONGO_URI,{
 })
     .then(() => {
         console.log('Connected to MongoDB.');
-        app.listen(PORT, () => {
+        app.listen(PORT,"0.0.0.0", () => {
             console.log(`Server is running on http://localhost:${PORT}`);
             console.log('Your Appointment Manager is now live and connected to the database.');
         });
