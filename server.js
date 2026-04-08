@@ -88,6 +88,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/keepwake', async (req, res) => {
     try {
         // Find the first document in the collection to ensure the database is responsive.
+        // checking
         const keepwakeAppointment = await Appointment.findOne();
         if (keepwakeAppointment) {
             res.json(keepwakeAppointment);
